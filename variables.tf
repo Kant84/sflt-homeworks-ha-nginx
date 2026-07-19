@@ -13,3 +13,8 @@ variable "yc_folder_id" {
   description = "ID каталога"
   type        = string
 }
+
+variable "yc_service_account_id" {
+  description = "ID сервисного аккаунта для Instance Group"
+  type        = string
+}

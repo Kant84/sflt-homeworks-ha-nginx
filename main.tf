@@ -14,10 +14,12 @@ provider "yandex" {
   zone      = "ru-central1-a"
 }
 
+# Сеть
 resource "yandex_vpc_network" "network" {
   name = "ha-network"
 }
 
+# Подсеть
 resource "yandex_vpc_subnet" "subnet" {
   name           = "ha-subnet"
   zone           = "ru-central1-a"
@@ -25,48 +27,59 @@ resource "yandex_vpc_subnet" "subnet" {
   v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-resource "yandex_compute_instance" "vm" {
-  count = 2
+# Группа виртуальных машин
+resource "yandex_compute_instance_group" "ig" {
+  name               = "nginx-instance-group"
+  folder_id          = var.yc_folder_id
+  service_account_id = var.yc_service_account_id
+  instance_template {
+    platform_id = "standard-v3"
+    resources {
+      cores  = 2
+      memory = 2
+    }
 
-  name        = "nginx-vm-${count.index + 1}"
-  platform_id = "standard-v3"
-  zone        = "ru-central1-a"
+    boot_disk {
+      initialize_params {
+        image_id = "fd8kdq6d0p8sij7h5qe3"
+        size     = 20
+        type     = "network-hdd"
+      }
+    }
 
-  resources {
-    cores  = 2
-    memory = 2
-  }
+    network_interface {
+      network_id = yandex_vpc_network.network.id
+      subnet_ids = [yandex_vpc_subnet.subnet.id]
+      nat        = true
+    }
 
-  boot_disk {
-    initialize_params {
-      image_id = "fd8kdq6d0p8sij7h5qe3"
-      size     = 20
-      type     = "network-hdd"
+    metadata = {
+      user-data = file("${path.module}/cloud-init.yaml")
+      ssh-keys  = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
     }
   }
 
-  network_interface {
-    subnet_id = yandex_vpc_subnet.subnet.id
-    nat       = true
-  }
-
-  metadata = {
-    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
-  }
-}
-
-resource "yandex_lb_target_group" "tg" {
-  name = "nginx-target-group"
-
-  dynamic "target" {
-    for_each = yandex_compute_instance.vm
-    content {
-      subnet_id = yandex_vpc_subnet.subnet.id
-      address   = target.value.network_interface.0.ip_address
+  scale_policy {
+    fixed_scale {
+      size = 2
     }
   }
+
+  allocation_policy {
+    zones = ["ru-central1-a"]
+  }
+
+  deploy_policy {
+    max_unavailable = 1
+    max_expansion   = 0
+  }
+
+  load_balancer {
+    target_group_name = "nginx-target-group"
+  }
 }
 
+# Сетевой балансировщик
 resource "yandex_lb_network_load_balancer" "lb" {
   name = "nginx-lb"
 
@@ -80,7 +93,7 @@ resource "yandex_lb_network_load_balancer" "lb" {
   }
 
   attached_target_group {
-    target_group_id = yandex_lb_target_group.tg.id
+    target_group_id = yandex_compute_instance_group.ig.load_balancer.0.target_group_id
 
     healthcheck {
       name = "http-healthcheck"
