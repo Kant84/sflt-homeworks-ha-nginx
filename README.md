@@ -4,30 +4,18 @@
 
 ## Задание 1
 
-### Terraform Playbook
+Создано через Terraform:
+- 2 виртуальные машины `nginx-vm-1` и `nginx-vm-2` через `count`
+- Таргет-группа `nginx-target-group`
+- Сетевой балансировщик `nginx-lb`
 
-- [main.tf](main.tf) — основная конфигурация
-- [variables.tf](variables.tf) — переменные
+## Задание 2*
 
-### Результаты
+Создано через Terraform:
+- Группа виртуальных машин `nginx-instance-group`
+- Автоматическая установка Nginx через `cloud-init` (user-data)
+- Таргет-группа и балансировщик автоматически
 
-**Балансировщик:**
-- Имя: `nginx-lb`
-- IP: `130.193.56.158`
-- Статус: **Active**
+**Балансировщик:** `nginx-lb`, IP `158.160.203.121`, статус **Active**
 
-**Целевая группа:**
-- Имя: `nginx-target-group`
-- Цели: `nginx-vm-1` (192.168.10.23), `nginx-vm-2` (192.168.10.3)
-- Статус обеих: **Healthy**
-
-### Скриншоты
-
-1. Статус балансировщика и целевой группы:
-   ![Балансировщик Active, цели Healthy](screenshot-lb.png)
-
-2. Список виртуальных машин:
-   ![2 ВМ Running](screenshot-vms.png)
-
-3. Страница Nginx:
-   ![Welcome to nginx!](screenshot-nginx.png)
+**Целевая группа:** `nginx-target-group`, 2 цели **Healthy**
